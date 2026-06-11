@@ -26,10 +26,9 @@ nixPkgs = [
     "xorg.libXScrnSaver"
 ]
 
-[phases.install]
-dependsOn = ["setup"]
+[phases.post-install]
 cmds = [
-    "playwright install chromium"
+    "/opt/venv/bin/python -m playwright install chromium"
 ]
 
 [start]
