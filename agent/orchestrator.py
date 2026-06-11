@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -338,27 +339,26 @@ async def _open_and_collect(
 ) -> list[dict]:
     """Open a single search server session, register its tools, search, and return jobs."""
     jobs: list[dict] = []
-    async with stdio_client(params) as (r, w):
-        async with ClientSession(r, w) as session:
-            await session.initialize()
+    try:
+        async with stdio_client(params) as (r, w):
+            async with ClientSession(r, w) as session:
+                await session.initialize()
 
-            # Register this server's tools into the shared list (once)
-            tools_result = await session.list_tools()
-            server_tools = [_mcp_tool_to_openai(t, key) for t in tools_result.tools]
-            # Deduplicate by name
-            existing_names = {t["function"]["name"] for t in shared_tools}
-            for t in server_tools:
-                if t["function"]["name"] not in existing_names:
-                    shared_tools.append(t)
-                    existing_names.add(t["function"]["name"])
+                # Register this server's tools into the shared list (once)
+                tools_result = await session.list_tools()
+                server_tools = [_mcp_tool_to_openai(t, key) for t in tools_result.tools]
+                # Deduplicate by name
+                existing_names = {t["function"]["name"] for t in shared_tools}
+                for t in server_tools:
+                    if t["function"]["name"] not in existing_names:
+                        shared_tools.append(t)
+                        existing_names.add(t["function"]["name"])
 
-            # Build single-server tool list for direct call
-            roles = preferences.get("roles", ["Software Developer"])
-            location = ", ".join(preferences.get("location", ["India"]))
-            experience = preferences.get("experience", 0)
-            query = " ".join(roles[:2])
+                roles = preferences.get("roles", ["Software Developer"])
+                location = ", ".join(preferences.get("location", ["India"]))
+                experience = preferences.get("experience", 0)
+                query = " ".join(roles[:2])
 
-            try:
                 result = await _call_mcp_tool(
                     session,
                     "search_jobs",
@@ -371,8 +371,10 @@ async def _open_and_collect(
                 )
                 if isinstance(result, list):
                     jobs.extend(result)
-            except Exception as exc:
-                print(f"[orchestrator] {key} search error: {exc}", flush=True)
+                print(f"[orchestrator] {key}: collected {len(jobs)} jobs", flush=True)
+    except Exception as exc:
+        print(f"[orchestrator] {key} FAILED: {type(exc).__name__}: {exc}", flush=True)
+        print(traceback.format_exc(), flush=True)
 
     return jobs
 
@@ -403,4 +405,4 @@ if __name__ == "__main__":
     }
 
     saved = asyncio.run(run(args.user_id, preferences, resume_text))
-    print(f"Saved {len(saved)} jobs.")
+    print(f"Saved {len(saved)} jobs.", flush=True)
