@@ -1,0 +1,37 @@
+# MCP framework
+mcp>=1.27.2
+
+# AI / LLM
+openai>=1.40.0
+
+# Database
+motor>=3.5.0
+
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Scraping
+playwright>=1.45.0
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+
+# Env & config
+python-dotenv>=1.0.0
+
+# Scheduling (for future background scrape intervals)
+apscheduler>=3.10.0
+
+# Validation
+pydantic[email]>=2.8.0
+
+# HTTP client
+httpx>=0.27.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib>=1.7.4
+google-auth>=2.29.0
+
+# PDF parsing
+pypdf>=4.0.0

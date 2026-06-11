@@ -1,0 +1,95 @@
+import { useState } from 'react'
+import { timeAgo } from '../lib/utils'
+
+const PLATFORM_COLORS = {
+  linkedin: 'bg-blue-100 text-blue-800',
+  naukri: 'bg-orange-100 text-orange-800',
+  internshala: 'bg-green-100 text-green-800',
+  indeed: 'bg-indigo-100 text-indigo-800',
+}
+
+const STATUS_STYLES = {
+  new: 'bg-gray-100 text-gray-700',
+  saved: 'bg-blue-100 text-blue-700',
+  applied: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+  interview: 'bg-purple-100 text-purple-700',
+}
+
+export default function JobCard({ job, onStatusChange }) {
+  const [status, setStatus] = useState(job.status || 'new')
+  const [saving, setSaving] = useState(false)
+
+  const platformKey = (job.platform || '').toLowerCase()
+  const platformColor = PLATFORM_COLORS[platformKey] || 'bg-gray-100 text-gray-700'
+  const scoreColor =
+    job.fit_score >= 80
+      ? 'bg-green-100 text-green-800'
+      : job.fit_score >= 70
+      ? 'bg-yellow-100 text-yellow-800'
+      : 'bg-red-100 text-red-800'
+
+  async function handleStatusChange(e) {
+    const next = e.target.value
+    setStatus(next)
+    setSaving(true)
+    try {
+      await onStatusChange(job.id, next)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
+      <div className="flex justify-between items-center">
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${platformColor}`}>
+          {job.platform}
+        </span>
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${scoreColor}`}>
+          {job.fit_score}% fit
+        </span>
+      </div>
+
+      <h3 className="font-bold text-gray-900 text-lg leading-snug">{job.title}</h3>
+
+      <p className="text-sm text-gray-500">
+        <span className="font-medium text-gray-700">{job.company}</span>
+        {job.location && <span className="ml-2">📍 {job.location}</span>}
+      </p>
+
+      <p className="text-xs text-gray-400">{timeAgo(job.posted_at)}</p>
+
+      {job.fit_reason && (
+        <p className="text-sm text-gray-500 italic leading-relaxed">
+          "{job.fit_reason}"
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+        <select
+          value={status}
+          onChange={handleStatusChange}
+          disabled={saving}
+          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border-0 outline-none
+                      cursor-pointer focus:ring-2 focus:ring-indigo-400 ${STATUS_STYLES[status]}`}
+        >
+          <option value="new">New</option>
+          <option value="saved">Saved</option>
+          <option value="applied">Applied</option>
+          <option value="rejected">Rejected</option>
+          <option value="interview">Interview</option>
+        </select>
+
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
+        >
+          View Job →
+        </a>
+      </div>
+    </div>
+  )
+}
