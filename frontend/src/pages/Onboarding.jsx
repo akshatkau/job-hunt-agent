@@ -176,7 +176,7 @@ export default function Onboarding() {
 
         <StepIndicator step={step} />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8">
 
           {/* ── Step 1: Resume ── */}
           {step === 1 && (
@@ -359,7 +359,7 @@ export default function Onboarding() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Minimum Salary (₹/year)

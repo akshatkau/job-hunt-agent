@@ -51,4 +51,5 @@ async def google_auth(body: GoogleTokenRequest):
         "name":         user["name"],
         "email":        user["email"],
         "picture":      user.get("picture", ""),
+        "resume_text":  user.get("resume_text", ""),
     }

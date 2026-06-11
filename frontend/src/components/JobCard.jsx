@@ -73,7 +73,7 @@ export default function JobCard({ job, onStatusChange }) {
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-gray-100">
         <select
           value={status}
           onChange={handleStatusChange}

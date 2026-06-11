@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sortBy, setSortBy] = useState('fit_score')
   const [filters, setFilters] = useState({
     platform: '',
@@ -143,8 +144,19 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
 
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside className="w-[280px] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200
+                         overflow-y-auto transform transition-transform duration-200 ease-in-out
+                         lg:relative lg:translate-x-0 lg:flex-shrink-0
+                         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 space-y-7">
 
           {/* Controls */}
@@ -349,10 +361,22 @@ export default function Dashboard() {
 
         {/* Navbar */}
         <nav className="h-16 bg-white border-b border-gray-200 flex items-center justify-between
-                        px-6 flex-shrink-0">
-          <div>
-            <p className="font-bold text-gray-900 leading-tight">Job Hunt Agent</p>
-            <p className="text-xs text-gray-400">AI-powered job discovery</p>
+                        px-4 sm:px-6 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="lg:hidden p-2 -ml-1 rounded-lg text-gray-600 hover:bg-gray-100"
+              aria-label="Toggle menu"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <p className="font-bold text-gray-900 leading-tight">Job Hunt Agent</p>
+              <p className="text-xs text-gray-400 hidden sm:block">AI-powered job discovery</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -404,7 +428,7 @@ export default function Dashboard() {
 
           {/* Job grid / states */}
           {loading ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : sortedJobs.length === 0 ? (
@@ -416,7 +440,7 @@ export default function Dashboard() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
               {sortedJobs.map(job => (
                 <JobCard key={job.id} job={job} onStatusChange={handleStatusChange} />
               ))}

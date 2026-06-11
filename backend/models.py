@@ -48,7 +48,7 @@ class JobResponse(BaseModel):
     fit_score: int = 0
     fit_reason: str = ""
     status: str = "new"
-    scraped_at: Optional[str] = None
+    scraped_at: Optional[datetime] = None
     posted_at: Optional[datetime] = None
     last_seen_at: Optional[datetime] = None
 

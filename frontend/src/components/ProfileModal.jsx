@@ -63,8 +63,9 @@ export default function ProfileModal({ user, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/50">
+      <div className="flex h-full sm:items-center sm:justify-center sm:p-4">
+      <div className="bg-white w-full h-full sm:h-auto sm:rounded-2xl sm:shadow-2xl sm:max-w-2xl sm:max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
@@ -135,7 +136,7 @@ export default function ProfileModal({ user, onSave, onClose }) {
           </div>
 
           {/* Salary + Experience */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Min Salary (₹/year)
@@ -186,6 +187,7 @@ export default function ProfileModal({ user, onSave, onClose }) {
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
+      </div>
       </div>
     </div>
   )
