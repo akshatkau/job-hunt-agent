@@ -130,6 +130,14 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/debug-cors")
+async def debug_cors():
+    return {
+        "FRONTEND_URL": os.getenv("FRONTEND_URL"),
+        "allowed_origins": list(_ALLOWED_ORIGINS),
+    }
+
+
 # ── Users ──────────────────────────────────────────────────────────────────────
 
 @app.post("/users", response_model=UserResponse, status_code=201, dependencies=[Depends(verify_jwt)])
@@ -350,6 +358,8 @@ def _user_response(doc: dict) -> UserResponse:
 
 def _job_response(doc: dict) -> JobResponse:
     s = serialize_doc(doc)
+    scraped_at = s.get("scraped_at")
+    last_seen_at = s.get("last_seen_at")
     return JobResponse(
         id=s.get("id", s.get("_id", "")),
         user_id=s.get("user_id", ""),
@@ -362,9 +372,9 @@ def _job_response(doc: dict) -> JobResponse:
         fit_score=int(s.get("fit_score", 0)),
         fit_reason=s.get("fit_reason", ""),
         status=s.get("status", "new"),
-        scraped_at=s.get("scraped_at"),
+        scraped_at=scraped_at.isoformat() if isinstance(scraped_at, datetime) else scraped_at,
         posted_at=s.get("posted_at"),
-        last_seen_at=s.get("last_seen_at"),
+        last_seen_at=last_seen_at.isoformat() if isinstance(last_seen_at, datetime) else last_seen_at,
     )
 
 
