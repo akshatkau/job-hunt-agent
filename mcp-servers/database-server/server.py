@@ -56,8 +56,7 @@ def _serialize(doc: dict) -> dict:
 
 async def _save_job(job_data: dict) -> dict:
     db = _get_db()
-    job_data.setdefault("status", "new")
-    job_data.setdefault("scraped_at", datetime.now(timezone.utc).isoformat())
+    now = datetime.now(timezone.utc)
 
     # Store posted_at as a proper BSON datetime for reliable range queries.
     # Drop it entirely when null so $gte filters don't match docs without a date.
@@ -70,13 +69,27 @@ async def _save_job(job_data: dict) -> dict:
             except ValueError:
                 del job_data["posted_at"]
 
-    # Upsert on (user_id + url) to avoid duplicates
+    # Upsert on (user_id + url) to avoid duplicates.
+    # $setOnInsert: scraped_at + status only written on first insert.
+    # $set: all mutable fields + last_seen_at updated every scrape.
     filter_q = {
         "user_id": job_data.get("user_id"),
         "url": job_data.get("url"),
     }
-    update = {"$set": job_data}
-    result = await db.jobs.update_one(filter_q, update, upsert=True)
+    set_fields = {k: v for k, v in job_data.items() if k not in ("scraped_at", "status")}
+    set_fields["last_seen_at"] = now
+
+    result = await db.jobs.update_one(
+        filter_q,
+        {
+            "$set": set_fields,
+            "$setOnInsert": {
+                "scraped_at": now,
+                "status": "new",
+            },
+        },
+        upsert=True,
+    )
 
     upserted_id = result.upserted_id
     if upserted_id:

@@ -31,6 +31,7 @@ def verify_google_token(token: str) -> dict:
             token,
             google_requests.Request(),
             client_id,
+            clock_skew_in_seconds=10,
         )
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {exc}")

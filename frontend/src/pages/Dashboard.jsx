@@ -23,6 +23,7 @@ export default function Dashboard() {
     status: '',
     minScore: 60,
     postedWithin: '',
+    isNewOnly: false,
   })
   const scrapeTimerRef = useRef(null)
 
@@ -51,6 +52,7 @@ export default function Dashboard() {
       ...(filters.platform && { platform: filters.platform }),
       ...(filters.status && { status: filters.status }),
       ...(filters.postedWithin && { posted_within_hours: parseInt(filters.postedWithin) }),
+      ...(filters.isNewOnly && { is_new: true }),
     }
 
     getJobs(params)
@@ -265,6 +267,19 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* New only toggle */}
+              <button
+                onClick={() => setFilter('isNewOnly', !filters.isNewOnly)}
+                className={`w-full text-sm font-semibold py-2 rounded-lg border transition-colors ${
+                  filters.isNewOnly
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {filters.isNewOnly ? '✓ New jobs only' : 'Show new only'}
+              </button>
+
             </div>
           </div>
 

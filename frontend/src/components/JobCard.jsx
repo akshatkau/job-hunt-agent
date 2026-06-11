@@ -51,7 +51,14 @@ export default function JobCard({ job, onStatusChange }) {
         </span>
       </div>
 
-      <h3 className="font-bold text-gray-900 text-lg leading-snug">{job.title}</h3>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h3 className="font-bold text-gray-900 text-lg leading-snug">{job.title}</h3>
+        {job.scraped_at && (Date.now() - new Date(job.scraped_at).getTime()) < 86400000 && (
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">
+            NEW
+          </span>
+        )}
+      </div>
 
       <p className="text-sm text-gray-500">
         <span className="font-medium text-gray-700">{job.company}</span>

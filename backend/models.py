@@ -50,6 +50,7 @@ class JobResponse(BaseModel):
     status: str = "new"
     scraped_at: Optional[str] = None
     posted_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
 
 
 class JobStatusUpdate(BaseModel):

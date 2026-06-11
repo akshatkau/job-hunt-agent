@@ -250,6 +250,7 @@ async def list_jobs(
     status: Optional[str] = Query(None),
     min_score: Optional[int] = Query(None, alias="minScore"),
     posted_within_hours: Optional[int] = Query(None),
+    is_new: Optional[bool] = Query(None),
     limit: int = Query(50, le=200),
 ):
     db = get_db()
@@ -266,6 +267,9 @@ async def list_jobs(
     if posted_within_hours is not None:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=posted_within_hours)
         query["posted_at"] = {"$gte": cutoff}
+    if is_new is not None:
+        cutoff_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+        query["scraped_at"] = {"$gte": cutoff_24h} if is_new else {"$lt": cutoff_24h}
 
     cursor = db.jobs.find(query).sort("fit_score", -1).limit(limit)
     docs = await cursor.to_list(length=limit)
@@ -360,6 +364,7 @@ def _job_response(doc: dict) -> JobResponse:
         status=s.get("status", "new"),
         scraped_at=s.get("scraped_at"),
         posted_at=s.get("posted_at"),
+        last_seen_at=s.get("last_seen_at"),
     )
 
 
