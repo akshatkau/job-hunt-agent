@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import sys
+import traceback
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ from playwright.async_api import async_playwright
 from utils.time_parser import parse_relative_time
 
 load_dotenv()
+print(f"[scraper] server starting: {__file__}", flush=True, file=sys.stderr)
 
 server = Server("linkedin-server")
 
@@ -47,84 +49,91 @@ def _experience_filter(years: int) -> str:
 
 async def _scrape_linkedin(query: str, location: str, experience: int, limit: int) -> list[dict]:
     jobs = []
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=_USER_AGENT,
-            viewport={"width": 1366, "height": 768},
-        )
-        page = await context.new_page()
-        await page.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
-
-        params = {
-            "keywords": query,
-            "location": location,
-            "f_E": _experience_filter(experience),
-            "position": 1,
-            "pageNum": 0,
-        }
-        url = "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode(params)
-
-        try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-            await page.wait_for_timeout(3000)
-
-            # LinkedIn card selector confirmed against live DOM
-            cards = await page.query_selector_all(
-                "ul.jobs-search__results-list li"
+    try:
+        async with async_playwright() as p:
+            try:
+                browser = await p.chromium.launch(headless=True)
+                print("[scraper] browser launched OK", flush=True, file=sys.stderr)
+            except Exception as e:
+                print(f"[scraper] browser launch FAILED: {e}", flush=True, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr, flush=True)
+                return []
+            context = await browser.new_context(
+                user_agent=_USER_AGENT,
+                viewport={"width": 1366, "height": 768},
+            )
+            page = await context.new_page()
+            await page.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            for card in cards[:limit]:
-                try:
-                    title_el = await card.query_selector("h3")
-                    company_el = await card.query_selector("h4")
-                    loc_el = await card.query_selector(
-                        "span.job-search-card__location, [class*='location']"
-                    )
-                    link_el = await card.query_selector("a.base-card__full-link")
-                    time_el = await card.query_selector("time.job-search-card__listdate")
-                    href = await link_el.get_attribute("href") if link_el else None
+            params = {
+                "keywords": query,
+                "location": location,
+                "f_E": _experience_filter(experience),
+                "position": 1,
+                "pageNum": 0,
+            }
+            url = "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode(params)
 
-                    posted_at = None
-                    if time_el:
-                        dt_attr = await time_el.get_attribute("datetime")
-                        if dt_attr:
-                            try:
-                                # LinkedIn gives date-only "YYYY-MM-DD" or full ISO
-                                if "T" in dt_attr:
-                                    posted_at = datetime.fromisoformat(
-                                        dt_attr.replace("Z", "+00:00")
-                                    )
-                                else:
-                                    from datetime import date
-                                    d = date.fromisoformat(dt_attr)
-                                    posted_at = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
-                            except ValueError:
-                                pass
-                        if posted_at is None:
-                            posted_at = parse_relative_time(
-                                (await time_el.inner_text()).strip()
-                            )
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                await page.wait_for_timeout(3000)
 
-                    jobs.append({
-                        "title": (await title_el.inner_text()).strip() if title_el else "N/A",
-                        "company": (await company_el.inner_text()).strip() if company_el else "N/A",
-                        "location": (await loc_el.inner_text()).strip() if loc_el else location,
-                        "description": "",
-                        "url": (href or "").split("?")[0],
-                        "platform": "linkedin",
-                        "scraped_at": datetime.utcnow().isoformat(),
-                        "posted_at": posted_at.isoformat() if posted_at else None,
-                    })
-                except Exception:
-                    continue
-        except Exception as exc:
-            sys.stderr.write(f"[linkedin-server] scrape error: {exc}\n")
-        finally:
-            await browser.close()
+                cards = await page.query_selector_all(
+                    "ul.jobs-search__results-list li"
+                )
 
+                for card in cards[:limit]:
+                    try:
+                        title_el = await card.query_selector("h3")
+                        company_el = await card.query_selector("h4")
+                        loc_el = await card.query_selector(
+                            "span.job-search-card__location, [class*='location']"
+                        )
+                        link_el = await card.query_selector("a.base-card__full-link")
+                        time_el = await card.query_selector("time.job-search-card__listdate")
+                        href = await link_el.get_attribute("href") if link_el else None
+
+                        posted_at = None
+                        if time_el:
+                            dt_attr = await time_el.get_attribute("datetime")
+                            if dt_attr:
+                                try:
+                                    if "T" in dt_attr:
+                                        posted_at = datetime.fromisoformat(
+                                            dt_attr.replace("Z", "+00:00")
+                                        )
+                                    else:
+                                        from datetime import date
+                                        d = date.fromisoformat(dt_attr)
+                                        posted_at = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+                                except ValueError:
+                                    pass
+                            if posted_at is None:
+                                posted_at = parse_relative_time(
+                                    (await time_el.inner_text()).strip()
+                                )
+
+                        jobs.append({
+                            "title": (await title_el.inner_text()).strip() if title_el else "N/A",
+                            "company": (await company_el.inner_text()).strip() if company_el else "N/A",
+                            "location": (await loc_el.inner_text()).strip() if loc_el else location,
+                            "description": "",
+                            "url": (href or "").split("?")[0],
+                            "platform": "linkedin",
+                            "scraped_at": datetime.utcnow().isoformat(),
+                            "posted_at": posted_at.isoformat() if posted_at else None,
+                        })
+                    except Exception:
+                        continue
+            except Exception as exc:
+                sys.stderr.write(f"[linkedin-server] scrape error: {exc}\n")
+            finally:
+                await browser.close()
+    except Exception as e:
+        print(f"[scraper] playwright error: {e}", flush=True, file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
     return jobs
 
 

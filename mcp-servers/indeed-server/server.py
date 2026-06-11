@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import sys
+import traceback
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ from playwright.async_api import async_playwright
 from utils.time_parser import parse_relative_time
 
 load_dotenv()
+print(f"[scraper] server starting: {__file__}", flush=True, file=sys.stderr)
 
 server = Server("indeed-server")
 
@@ -45,77 +47,86 @@ def _exp_level(years: int) -> str:
 
 async def _scrape_indeed(query: str, location: str, experience: int, limit: int) -> list[dict]:
     jobs = []
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=_USER_AGENT,
-            viewport={"width": 1280, "height": 800},
-            locale="en-IN",
-        )
-        page = await context.new_page()
-        await page.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
-
-        params = {
-            "q": query,
-            "l": location,
-            "explvl": _exp_level(experience),
-        }
-        url = "https://in.indeed.com/jobs?" + urllib.parse.urlencode(params)
-
-        try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-            await page.wait_for_timeout(2500)
-
-            cards = await page.query_selector_all(
-                "div.job_seen_beacon, li[class*='css-5lfssm'], [data-jk]"
+    try:
+        async with async_playwright() as p:
+            try:
+                browser = await p.chromium.launch(headless=True)
+                print("[scraper] browser launched OK", flush=True, file=sys.stderr)
+            except Exception as e:
+                print(f"[scraper] browser launch FAILED: {e}", flush=True, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr, flush=True)
+                return []
+            context = await browser.new_context(
+                user_agent=_USER_AGENT,
+                viewport={"width": 1280, "height": 800},
+                locale="en-IN",
+            )
+            page = await context.new_page()
+            await page.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            for card in cards[:limit]:
-                try:
-                    title_el = await card.query_selector(
-                        "h2.jobTitle span[title], h2.jobTitle a span, [class*='jobTitle'] span"
-                    )
-                    company_el = await card.query_selector(
-                        "[data-testid='company-name'], span[class*='companyName']"
-                    )
-                    loc_el = await card.query_selector(
-                        "[data-testid='text-location'], div[class*='companyLocation']"
-                    )
-                    desc_el = await card.query_selector(
-                        "div[class*='job-snippet'], ul[class*='jobSnippet']"
-                    )
-                    link_el = await card.query_selector("h2.jobTitle a, a[id^='job_']")
+            params = {
+                "q": query,
+                "l": location,
+                "explvl": _exp_level(experience),
+            }
+            url = "https://in.indeed.com/jobs?" + urllib.parse.urlencode(params)
 
-                    date_el = await card.query_selector(
-                        "span.date, [class*='date'], "
-                        "[data-testid='myJobsStateDate'], span[class*='posting-date']"
-                    )
-                    href = await link_el.get_attribute("href") if link_el else ""
-                    if href and not href.startswith("http"):
-                        href = "https://in.indeed.com" + href
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                await page.wait_for_timeout(2500)
 
-                    time_text = (await date_el.inner_text()).strip() if date_el else ""
-                    posted_at = parse_relative_time(time_text)
+                cards = await page.query_selector_all(
+                    "div.job_seen_beacon, li[class*='css-5lfssm'], [data-jk]"
+                )
 
-                    jobs.append({
-                        "title": (await title_el.inner_text()).strip() if title_el else "N/A",
-                        "company": (await company_el.inner_text()).strip() if company_el else "N/A",
-                        "location": (await loc_el.inner_text()).strip() if loc_el else location,
-                        "description": (await desc_el.inner_text()).strip() if desc_el else "",
-                        "url": href or url,
-                        "platform": "indeed",
-                        "scraped_at": datetime.utcnow().isoformat(),
-                        "posted_at": posted_at.isoformat() if posted_at else None,
-                    })
-                except Exception:
-                    continue
-        except Exception as exc:
-            sys.stderr.write(f"[indeed-server] scrape error: {exc}\n")
-        finally:
-            await browser.close()
+                for card in cards[:limit]:
+                    try:
+                        title_el = await card.query_selector(
+                            "h2.jobTitle span[title], h2.jobTitle a span, [class*='jobTitle'] span"
+                        )
+                        company_el = await card.query_selector(
+                            "[data-testid='company-name'], span[class*='companyName']"
+                        )
+                        loc_el = await card.query_selector(
+                            "[data-testid='text-location'], div[class*='companyLocation']"
+                        )
+                        desc_el = await card.query_selector(
+                            "div[class*='job-snippet'], ul[class*='jobSnippet']"
+                        )
+                        link_el = await card.query_selector("h2.jobTitle a, a[id^='job_']")
 
+                        date_el = await card.query_selector(
+                            "span.date, [class*='date'], "
+                            "[data-testid='myJobsStateDate'], span[class*='posting-date']"
+                        )
+                        href = await link_el.get_attribute("href") if link_el else ""
+                        if href and not href.startswith("http"):
+                            href = "https://in.indeed.com" + href
+
+                        time_text = (await date_el.inner_text()).strip() if date_el else ""
+                        posted_at = parse_relative_time(time_text)
+
+                        jobs.append({
+                            "title": (await title_el.inner_text()).strip() if title_el else "N/A",
+                            "company": (await company_el.inner_text()).strip() if company_el else "N/A",
+                            "location": (await loc_el.inner_text()).strip() if loc_el else location,
+                            "description": (await desc_el.inner_text()).strip() if desc_el else "",
+                            "url": href or url,
+                            "platform": "indeed",
+                            "scraped_at": datetime.utcnow().isoformat(),
+                            "posted_at": posted_at.isoformat() if posted_at else None,
+                        })
+                    except Exception:
+                        continue
+            except Exception as exc:
+                sys.stderr.write(f"[indeed-server] scrape error: {exc}\n")
+            finally:
+                await browser.close()
+    except Exception as e:
+        print(f"[scraper] playwright error: {e}", flush=True, file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
     return jobs
 
 
