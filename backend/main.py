@@ -130,14 +130,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/debug-cors")
-async def debug_cors():
-    return {
-        "FRONTEND_URL": os.getenv("FRONTEND_URL"),
-        "allowed_origins": list(_ALLOWED_ORIGINS),
-    }
-
-
 # ── Users ──────────────────────────────────────────────────────────────────────
 
 @app.post("/users", response_model=UserResponse, status_code=201, dependencies=[Depends(verify_jwt)])

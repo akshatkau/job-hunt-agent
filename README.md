@@ -1,168 +1,161 @@
-# Job Hunt Agent
+# Job Hunt Agent 🤖
 
-AI-powered job aggregator using the Model Context Protocol (MCP).
+An AI-powered job aggregator that discovers, scores, and tracks job 
+listings across LinkedIn, Naukri, Internshala, and Indeed — 
+personalized to your resume using GPT-4o-mini.
+
+## Live Demo
+- Frontend: https://job-hunt-agent-topaz.vercel.app
+- Backend API: https://job-hunt-agent-production-5d64.up.railway.app/docs
+
+## Features
+- 🔍 Scrapes jobs from LinkedIn, Naukri, Internshala, and Indeed
+- 🤖 AI scores each job against your resume (fit score 0-100)
+- 📄 PDF resume upload with AI-powered preference extraction
+- 🔐 Google OAuth authentication
+- 📊 Dashboard with filters (platform, score, date, status)
+- 📱 Fully responsive (mobile + desktop)
+- 🏷️ Track application status (saved/applied/rejected/interview)
 
 ## Architecture
 
+This project uses MCP (Model Context Protocol) — each job platform 
+is a standalone MCP server exposing a search_jobs tool. A Claude/GPT 
+agent orchestrates these servers to collect, score, and store jobs.
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  React Frontend  (Phase 2)                                       │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ REST
-┌──────────────────────────▼──────────────────────────────────────┐
-│  FastAPI Backend  (backend/main.py)                              │
-│  GET /jobs  POST /jobs/scrape  PUT /jobs/:id/status              │
-│  POST /users  GET /users/:id                                     │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ asyncio.create_task
-┌──────────────────────────▼──────────────────────────────────────┐
-│  Agent Orchestrator  (agent/orchestrator.py)                     │
-│  OpenAI gpt-4o-mini  ←→  MCP tool calling                       │
-└──┬───────────┬────────────┬────────────┬─────────────┬──────────┘
-   │ stdio     │ stdio      │ stdio      │ stdio       │ stdio
-┌──▼──┐  ┌────▼───┐  ┌─────▼────┐  ┌───▼──┐  ┌───────▼──────────┐
-│Naukri│  │LinkedIn│  │Internshala│  │Indeed│  │  Database Server  │
-│MCP  │  │MCP     │  │MCP        │  │MCP   │  │  (MongoDB/motor)  │
-└──────┘  └────────┘  └───────────┘  └──────┘  └──────────────────┘
+User → Google OAuth → JWT
+     → Onboarding → PDF Resume → GPT-4o-mini → Preferences
+     → Dashboard → Run Scrape
+                        ↓
+              AI Agent (Orchestrator)
+                        ↓
+            MCP Tool Calls (parallel)
+           ↙    ↙    ↙    ↙
+      Naukri LinkedIn Internshala Indeed
+           ↘    ↘    ↘    ↘
+              Playwright Scrapers
+                        ↓
+              GPT-4o-mini Scoring
+                        ↓
+              MongoDB Atlas Storage
+                        ↓
+              React Dashboard
 ```
 
-## Quick Start
+## Tech Stack
 
-### 1. Prerequisites
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite + Tailwind CSS |
+| Backend | FastAPI (Python) |
+| Database | MongoDB Atlas |
+| AI Scoring | OpenAI GPT-4o-mini |
+| Scraping | Playwright + BeautifulSoup |
+| Auth | Google OAuth + JWT |
+| MCP | Model Context Protocol SDK |
+| Deployment | Railway (backend) + Vercel (frontend) |
 
-- Python 3.11+
-- MongoDB Atlas cluster (or local MongoDB)
+## Project Structure
+
+```
+job-hunt-agent/
+├── mcp-servers/
+│   ├── naukri-server/       # Naukri MCP server
+│   ├── linkedin-server/     # LinkedIn MCP server
+│   ├── internshala-server/  # Internshala MCP server
+│   ├── indeed-server/       # Indeed MCP server
+│   └── database-server/     # MongoDB MCP server
+├── agent/
+│   └── orchestrator.py      # AI agent that calls MCP servers
+├── backend/
+│   ├── main.py              # FastAPI routes
+│   ├── auth.py              # Google OAuth + JWT
+│   ├── database.py          # MongoDB connection
+│   ├── models.py            # Pydantic schemas
+│   └── routes/auth.py       # Auth routes
+├── frontend/
+│   └── src/
+│       ├── pages/           # Login, Onboarding, Dashboard
+│       ├── components/      # JobCard, ProfileModal, TagInput
+│       └── lib/             # API client, utilities
+├── start.sh                 # Railway startup script
+└── requirements.txt
+```
+
+## Local Setup
+
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- MongoDB Atlas account
 - OpenAI API key
+- Google OAuth credentials
 
-### 2. Install dependencies
-
+### Backend
 ```bash
+# Install dependencies
 pip install -r requirements.txt
 playwright install chromium
-```
 
-### 3. Configure environment
-
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
+# Set environment variables (copy .env.example to .env)
 cp .env.example .env
-# edit .env with your OPENAI_API_KEY and MONGODB_URI
+# Fill in your values in .env
+
+# Run backend
+python -m uvicorn backend.main:app --port 8000 --reload
 ```
 
-### 4. Run the backend
-
+### Frontend
 ```bash
-uvicorn backend.main:app --reload --port 8000
-```
+cd frontend
+npm install
 
-### 5. Trigger a scrape (API)
+# Set environment variables
+cp .env.example .env
+# Fill in VITE_API_URL and VITE_GOOGLE_CLIENT_ID
 
-```bash
-# Create a user first
-curl -X POST http://localhost:8000/users \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Aakash",
-    "email": "you@example.com",
-    "resume_text": "Python developer with 2 years experience...",
-    "preferences": {
-      "roles": ["Backend Developer", "Python Engineer"],
-      "skills": ["Python", "FastAPI", "MongoDB"],
-      "location": ["Bangalore", "Remote"],
-      "experience": 2
-    }
-  }'
-
-# Trigger job scraping (returns 202, runs in background)
-curl -X POST http://localhost:8000/jobs/scrape \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "<user_id_from_above>"}'
-
-# Fetch results
-curl "http://localhost:8000/jobs?user_id=<id>&minScore=70"
-```
-
-### 6. Run the agent directly (CLI)
-
-```bash
-python -m agent.orchestrator \
-  --user-id <mongo_id> \
-  --roles "Backend Developer" "Python Engineer" \
-  --skills "Python" "FastAPI" \
-  --location "Bangalore" \
-  --experience 2 \
-  --resume path/to/resume.txt
-```
-
-## MCP Servers
-
-Each server is a standalone Python process communicating over stdio.
-
-| Server | File | Tool |
-|--------|------|------|
-| Naukri | `mcp-servers/naukri-server/server.py` | `search_jobs` |
-| LinkedIn | `mcp-servers/linkedin-server/server.py` | `search_jobs` |
-| Internshala | `mcp-servers/internshala-server/server.py` | `search_jobs` |
-| Indeed | `mcp-servers/indeed-server/server.py` | `search_jobs` |
-| Database | `mcp-servers/database-server/server.py` | `save_job`, `get_jobs`, `update_job_status` |
-
-### Tool: `search_jobs` (all job servers)
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `query` | string | required | Job title / skills |
-| `location` | string | `"India"` | City or region |
-| `experience` | integer | `0` | Years of experience |
-| `limit` | integer | `20` | Max results (≤50) |
-
-### Tools: Database server
-
-**`save_job(job_data)`** — upserts on `(user_id, url)`  
-**`get_jobs(filters)`** — filters: `user_id`, `platform`, `status`, `min_score`, `limit`  
-**`update_job_status(id, status)`** — statuses: `new | saved | applied | rejected | interview`
-
-## MongoDB Collections
-
-**`users`**
-```json
-{
-  "name": "string",
-  "email": "string",
-  "resume_text": "string",
-  "preferences": {
-    "roles": ["string"],
-    "skills": ["string"],
-    "location": ["string"],
-    "salary_min": 0,
-    "experience": 0
-  }
-}
-```
-
-**`jobs`**
-```json
-{
-  "user_id": "string",
-  "title": "string",
-  "company": "string",
-  "platform": "naukri|linkedin|internshala|indeed",
-  "location": "string",
-  "url": "string",
-  "description": "string",
-  "fit_score": 0,
-  "fit_reason": "string",
-  "status": "new|saved|applied|rejected|interview",
-  "scraped_at": "ISO8601"
-}
+npm run dev
 ```
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | OpenAI API key for scoring |
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `PORT` | FastAPI port (default `8000`) |
-| `SCRAPE_INTERVAL_HOURS` | Auto-scrape interval (default `6`) |
-| `MIN_FIT_SCORE` | Minimum score to save a job (default `60`) |
+### Backend (.env)
+```
+OPENAI_API_KEY=your_openai_key
+MONGODB_URI=mongodb+srv://...
+GOOGLE_CLIENT_ID=your_google_client_id
+JWT_SECRET=your_random_secret
+JWT_EXPIRE_HOURS=168
+FRONTEND_URL=https://your-frontend.vercel.app
+MIN_FIT_SCORE=60
+```
+
+### Frontend (frontend/.env)
+```
+VITE_API_URL=http://localhost:8000
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+## Deployment
+
+- Backend: Railway (auto-deploys from GitHub main branch)
+- Frontend: Vercel (auto-deploys from GitHub main branch)
+- Database: MongoDB Atlas (free tier)
+
+## Known Limitations
+
+- LinkedIn scraper selectors may break if LinkedIn updates their DOM
+- Scraped jobs reflect LinkedIn's public search algorithm — may show 
+  older listings
+- Playwright runs headless Chromium which may be detected and blocked
+  by some job boards over time
+
+## Built With
+
+- [Model Context Protocol](https://modelcontextprotocol.io) — agentic tool framework
+- [FastAPI](https://fastapi.tiangolo.com) — Python web framework  
+- [Playwright](https://playwright.dev) — browser automation
+- [MongoDB Atlas](https://mongodb.com/atlas) — cloud database
+- [Railway](https://railway.app) — backend deployment
+- [Vercel](https://vercel.com) — frontend deployment
