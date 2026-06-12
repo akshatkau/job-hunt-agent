@@ -126,7 +126,12 @@ export default function Onboarding() {
       }))
       setStep(2)
     } catch (err) {
-      setParseError(err.message || 'Failed to parse resume. Please try again.')
+      const msg = err.message || ''
+      if (msg.toLowerCase().includes('does not appear to be a resume')) {
+        setParseError("This doesn't look like a resume. Please upload your CV or resume PDF.")
+      } else {
+        setParseError(msg || 'Failed to parse resume. Please try again.')
+      }
     } finally {
       setParsing(false)
     }

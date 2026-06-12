@@ -191,9 +191,35 @@ async def parse_resume(body: _ParseResumeRequest):
     else:
         raise HTTPException(status_code=422, detail="Provide resume_pdf or resume_text")
 
+    # ── Validate document is actually a resume ────────────────────────────────
+    client = _get_openai()
+    validation_prompt = (
+        "You are a document classifier.\n"
+        "Analyze this document and determine if it is a resume/CV.\n"
+        "A resume typically contains: name, contact info, work experience, "
+        "education, and/or skills.\n\n"
+        'Respond ONLY with valid JSON:\n{"is_resume": true/false, "reason": "brief reason"}\n\n'
+        f"Document:\n{resume_text[:2000]}"
+    )
+    validation_response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": validation_prompt}],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    validation = json.loads(validation_response.choices[0].message.content)
+    if not validation.get("is_resume", False):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"The uploaded file does not appear to be a resume. "
+                f"{validation.get('reason', '')} "
+                f"Please upload your CV or resume."
+            ),
+        )
+
     # ── Send extracted text to GPT-4o-mini ────────────────────────────────────
     prompt = _PARSE_INSTRUCTIONS + f"\n\nResume:\n{resume_text}"
-    client = _get_openai()
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],

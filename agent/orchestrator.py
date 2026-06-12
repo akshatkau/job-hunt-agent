@@ -218,6 +218,14 @@ async def _collect_jobs(
 # _collect_jobs() call so GPT decides tool routing and query strategy.
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _params(key: str) -> StdioServerParameters:
+    return StdioServerParameters(
+        command=sys.executable,
+        args=[str(_SERVER_CONFIGS[key])],
+        env=dict(os.environ),
+    )
+
+
 async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
     """
     Run the full job-hunt pipeline for one user.
@@ -232,55 +240,36 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
     """
     print(f"[orchestrator] Starting job hunt for user {user_id}", flush=True)
 
-    search_server_keys = ["naukri", "linkedin", "internshala", "indeed"]
-    db_server_key = "database"
+    # ── Build search args with fallbacks ───────────────────────────────────────
+    roles = preferences.get("roles", [])
+    locations = preferences.get("location", [])
 
-    # Build StdioServerParameters for each server
-    def _params(key: str) -> StdioServerParameters:
-        return StdioServerParameters(
-            command=sys.executable,
-            args=[str(_SERVER_CONFIGS[key])],
-            env=dict(os.environ),
-        )
+    if not roles:
+        roles = ["Software Engineer", "Developer"]
+    if not locations:
+        locations = ["India", "Remote"]
 
-    # ── Open MCP sessions ──────────────────────────────────────────────────────
-    search_sessions: dict[str, ClientSession] = {}
-    search_tools: list[dict] = []
+    query = " OR ".join(roles[:3])
+    location = locations[0] if locations else "India"
 
-    async with (
-        stdio_client(_params("database")) as (db_read, db_write),
-        ClientSession(db_read, db_write) as db_session,
-    ):
-        await db_session.initialize()
+    search_args = {
+        "query": query,
+        "location": location,
+        "experience": preferences.get("experience", 0),
+        "limit": 20,
+    }
 
-        # Open all search server sessions concurrently
-        async def _open_search_session(key: str):
-            async with stdio_client(_params(key)) as (r, w):
-                async with ClientSession(r, w) as session:
-                    await session.initialize()
-                    tools_result = await session.list_tools()
-                    for t in tools_result.tools:
-                        search_tools.append(_mcp_tool_to_openai(t, key))
-                    search_sessions[key] = session
-                    # Keep session alive until we're done collecting
-                    return session
+    print(f"[orchestrator] search query: {query} | location: {location}", flush=True)
 
-        # Collect jobs from all platforms
-        # We open sessions and keep them alive for the collection loop
-        async with asyncio.TaskGroup() as tg:
-            session_tasks = {
-                key: tg.create_task(_open_and_collect(key, _params(key), search_tools, preferences))
-                for key in search_server_keys
-            }
-
-    # _open_and_collect returns jobs per platform; merge them
+    # ── Sequential scraping (one Chromium at a time to save memory) ────────────
     all_raw_jobs: list[dict] = []
-    for key, task in session_tasks.items():
+    for server_name in ["naukri", "linkedin", "internshala", "indeed"]:
         try:
-            platform_jobs = task.result()
-            all_raw_jobs.extend(platform_jobs)
-        except Exception as exc:
-            print(f"[orchestrator] {key} collection failed: {exc}", flush=True)
+            jobs = await _open_and_collect(server_name, search_args)
+            all_raw_jobs.extend(jobs)
+            print(f"[orchestrator] {server_name}: {len(jobs)} jobs", flush=True)
+        except Exception as e:
+            print(f"[orchestrator] {server_name} failed: {e}", flush=True)
 
     print(f"[orchestrator] Collected {len(all_raw_jobs)} raw jobs", flush=True)
 
@@ -291,10 +280,10 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
     saved_jobs: list[dict] = []
 
     async with (
-        stdio_client(_params("database")) as (db_read2, db_write2),
-        ClientSession(db_read2, db_write2) as db_sess2,
+        stdio_client(_params("database")) as (db_read, db_write),
+        ClientSession(db_read, db_write) as db_sess,
     ):
-        await db_sess2.initialize()
+        await db_sess.initialize()
 
         for job, score_result in zip(all_raw_jobs, scores):
             if isinstance(score_result, Exception):
@@ -312,7 +301,7 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
             }
 
             try:
-                await _call_mcp_tool(db_sess2, "save_job", {"job_data": job_doc})
+                await _call_mcp_tool(db_sess, "save_job", {"job_data": job_doc})
                 saved_jobs.append(job_doc)
             except Exception as exc:
                 print(f"[orchestrator] save_job error: {exc}", flush=True)
@@ -331,51 +320,19 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
     return saved_jobs
 
 
-async def _open_and_collect(
-    key: str,
-    params: StdioServerParameters,
-    shared_tools: list[dict],
-    preferences: dict,
-) -> list[dict]:
-    """Open a single search server session, register its tools, search, and return jobs."""
+async def _open_and_collect(key: str, search_args: dict) -> list[dict]:
+    """Open a single search server session, call search_jobs, and return jobs."""
     jobs: list[dict] = []
     try:
-        async with stdio_client(params) as (r, w):
+        async with stdio_client(_params(key)) as (r, w):
             async with ClientSession(r, w) as session:
                 await session.initialize()
-
-                # Register this server's tools into the shared list (once)
-                tools_result = await session.list_tools()
-                server_tools = [_mcp_tool_to_openai(t, key) for t in tools_result.tools]
-                # Deduplicate by name
-                existing_names = {t["function"]["name"] for t in shared_tools}
-                for t in server_tools:
-                    if t["function"]["name"] not in existing_names:
-                        shared_tools.append(t)
-                        existing_names.add(t["function"]["name"])
-
-                roles = preferences.get("roles", ["Software Developer"])
-                location = ", ".join(preferences.get("location", ["India"]))
-                experience = preferences.get("experience", 0)
-                query = " ".join(roles[:2])
-
-                result = await _call_mcp_tool(
-                    session,
-                    "search_jobs",
-                    {
-                        "query": query,
-                        "location": location,
-                        "experience": experience,
-                        "limit": 20,
-                    },
-                )
+                result = await _call_mcp_tool(session, "search_jobs", search_args)
                 if isinstance(result, list):
                     jobs.extend(result)
-                print(f"[orchestrator] {key}: collected {len(jobs)} jobs", flush=True)
     except Exception as exc:
         print(f"[orchestrator] {key} FAILED: {type(exc).__name__}: {exc}", flush=True)
         print(traceback.format_exc(), flush=True)
-
     return jobs
 
 

@@ -52,7 +52,19 @@ async def _scrape_linkedin(query: str, location: str, experience: int, limit: in
     try:
         async with async_playwright() as p:
             try:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--single-process",
+                        "--no-zygote",
+                        "--disable-setuid-sandbox",
+                        "--memory-pressure-off",
+                        "--max_old_space_size=256",
+                    ],
+                )
                 print("[scraper] browser launched OK", flush=True, file=sys.stderr)
             except Exception as e:
                 print(f"[scraper] browser launch FAILED: {e}", flush=True, file=sys.stderr)
