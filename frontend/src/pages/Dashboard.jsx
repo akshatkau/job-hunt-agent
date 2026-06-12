@@ -94,7 +94,7 @@ export default function Dashboard() {
     localStorage.setItem('last_scraped', new Date().toISOString())
     try {
       await scrapeJobs(userId)
-      let secs = 90
+      let secs = 60
       setScrapeCountdown(secs)
       if (scrapeTimerRef.current) clearInterval(scrapeTimerRef.current)
       scrapeTimerRef.current = setInterval(() => {
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
             {scraping && (
               <p className="text-xs text-gray-400 mt-1.5 text-center">
-                Results will appear in ~90 seconds
+                Results will appear in ~60 seconds
               </p>
             )}
             {!scraping && lastScraped && (

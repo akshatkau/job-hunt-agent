@@ -89,7 +89,7 @@ async def _scrape_linkedin(query: str, location: str, experience: int, limit: in
             url = "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode(params)
 
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
                 await page.wait_for_timeout(3000)
 
                 cards = await page.query_selector_all(

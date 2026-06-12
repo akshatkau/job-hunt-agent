@@ -76,8 +76,8 @@ async def _scrape_internshala(query: str, location: str, experience: int, limit:
                 url = f"https://internshala.com/jobs/{q_slug}-jobs-in-{l_slug}/"
 
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                await page.wait_for_timeout(2500)
+                await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+                await page.wait_for_timeout(2000)
 
                 cards = await page.query_selector_all(
                     ".individual_internship, .internship-container, [id^='internship_']"

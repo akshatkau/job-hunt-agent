@@ -86,8 +86,8 @@ async def _scrape_indeed(query: str, location: str, experience: int, limit: int)
             url = "https://in.indeed.com/jobs?" + urllib.parse.urlencode(params)
 
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                await page.wait_for_timeout(2500)
+                await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+                await page.wait_for_timeout(2000)
 
                 cards = await page.query_selector_all(
                     "div.job_seen_beacon, li[class*='css-5lfssm'], [data-jk]"

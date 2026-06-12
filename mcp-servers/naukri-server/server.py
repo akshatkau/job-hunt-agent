@@ -71,7 +71,7 @@ async def _scrape_naukri(query: str, location: str, experience: int, limit: int)
                 url += f"?experience={experience}"
 
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
                 await page.wait_for_timeout(2000)
 
                 cards = await page.query_selector_all("article.jobTuple4, div[class*='srp-jobtuple']")
