@@ -42,28 +42,8 @@ export default function JobCard({ job, onStatusChange }) {
     }
   }
 
-  async function handleHide() {
-    setSaving(true)
-    try {
-      await onStatusChange(job.id, 'hidden')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
-    <div className="relative group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
-      {/* Hide button — visible on card hover */}
-      <button
-        onClick={handleHide}
-        disabled={saving}
-        title="Hide this job"
-        className="absolute top-2 right-2 text-gray-300 hover:text-red-400 transition-colors
-                   opacity-0 group-hover:opacity-100 leading-none text-lg font-light"
-      >
-        ✕
-      </button>
-
+    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
       <div className="flex justify-between items-center">
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${platformColor}`}>
           {job.platform}
@@ -108,14 +88,24 @@ export default function JobCard({ job, onStatusChange }) {
           ))}
         </select>
 
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
-        >
-          View Job →
-        </a>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => onStatusChange(job.id, 'hidden')}
+            disabled={saving}
+            className="text-sm text-red-500 border border-red-200 hover:bg-red-50
+                       px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            ✕ Remove
+          </button>
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
+          >
+            View Job →
+          </a>
+        </div>
       </div>
     </div>
   )

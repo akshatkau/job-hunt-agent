@@ -117,8 +117,16 @@ export default function Dashboard() {
   }
 
   async function handleStatusChange(jobId, newStatus) {
-    await updateJobStatus(jobId, newStatus)
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j))
+    try {
+      await updateJobStatus(jobId, newStatus)
+      if (newStatus === 'hidden') {
+        setJobs(prev => prev.filter(j => j.id !== jobId))
+      } else {
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j))
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    }
   }
 
   function handleLogout() {
