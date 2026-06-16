@@ -25,6 +25,7 @@ export default function Dashboard() {
     minScore: 60,
     postedWithin: '',
     isNewOnly: false,
+    showHidden: false,
   })
   const scrapeTimerRef = useRef(null)
 
@@ -51,7 +52,7 @@ export default function Dashboard() {
       limit: 100,
       minScore: filters.minScore,
       ...(filters.platform && { platform: filters.platform }),
-      ...(filters.status && { status: filters.status }),
+      ...(filters.showHidden ? { status: 'hidden' } : filters.status ? { status: filters.status } : {}),
       ...(filters.postedWithin && { posted_within_hours: parseInt(filters.postedWithin) }),
       ...(filters.isNewOnly && { is_new: true }),
     }
@@ -222,8 +223,10 @@ export default function Dashboard() {
                 <select
                   value={filters.status}
                   onChange={e => setFilter('status', e.target.value)}
+                  disabled={filters.showHidden}
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2
-                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none
+                             disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <option value="">All</option>
                   <option value="new">New</option>
@@ -232,6 +235,22 @@ export default function Dashboard() {
                   <option value="rejected">Rejected</option>
                   <option value="interview">Interview</option>
                 </select>
+              </div>
+
+              {/* Show hidden toggle */}
+              <div>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={filters.showHidden}
+                    onChange={e => {
+                      setFilter('showHidden', e.target.checked)
+                      if (e.target.checked) setFilter('status', '')
+                    }}
+                    className="accent-indigo-600 w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Show hidden jobs</span>
+                </label>
               </div>
 
               {/* Fit Score slider */}

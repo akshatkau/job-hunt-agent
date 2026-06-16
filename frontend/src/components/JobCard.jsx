@@ -16,6 +16,8 @@ const STATUS_STYLES = {
   interview: 'bg-purple-100 text-purple-700',
 }
 
+const STATUS_OPTIONS = ["new", "saved", "applied", "rejected", "interview"]
+
 export default function JobCard({ job, onStatusChange }) {
   const [status, setStatus] = useState(job.status || 'new')
   const [saving, setSaving] = useState(false)
@@ -40,8 +42,28 @@ export default function JobCard({ job, onStatusChange }) {
     }
   }
 
+  async function handleHide() {
+    setSaving(true)
+    try {
+      await onStatusChange(job.id, 'hidden')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
+    <div className="relative group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
+      {/* Hide button — visible on card hover */}
+      <button
+        onClick={handleHide}
+        disabled={saving}
+        title="Hide this job"
+        className="absolute top-2 right-2 text-gray-300 hover:text-red-400 transition-colors
+                   opacity-0 group-hover:opacity-100 leading-none text-lg font-light"
+      >
+        ✕
+      </button>
+
       <div className="flex justify-between items-center">
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${platformColor}`}>
           {job.platform}
@@ -79,13 +101,11 @@ export default function JobCard({ job, onStatusChange }) {
           onChange={handleStatusChange}
           disabled={saving}
           className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border-0 outline-none
-                      cursor-pointer focus:ring-2 focus:ring-indigo-400 ${STATUS_STYLES[status]}`}
+                      cursor-pointer focus:ring-2 focus:ring-indigo-400 ${STATUS_STYLES[status] || STATUS_STYLES['new']}`}
         >
-          <option value="new">New</option>
-          <option value="saved">Saved</option>
-          <option value="applied">Applied</option>
-          <option value="rejected">Rejected</option>
-          <option value="interview">Interview</option>
+          {STATUS_OPTIONS.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
         </select>
 
         <a

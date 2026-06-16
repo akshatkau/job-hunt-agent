@@ -277,6 +277,8 @@ async def list_jobs(
         query["platform"] = platform
     if status:
         query["status"] = status
+    else:
+        query["status"] = {"$ne": "hidden"}
     if min_score is not None:
         query["fit_score"] = {"$gte": min_score}
     if posted_within_hours is not None:
@@ -324,7 +326,7 @@ async def trigger_scrape(body: ScrapeRequest):
 
 @app.put("/jobs/{job_id}/status", response_model=JobResponse, dependencies=[Depends(verify_jwt)])
 async def update_job_status(job_id: str, body: JobStatusUpdate):
-    valid = {"new", "saved", "applied", "rejected", "interview"}
+    valid = {"new", "saved", "applied", "rejected", "interview", "hidden"}
     if body.status not in valid:
         raise HTTPException(status_code=422, detail=f"status must be one of {valid}")
 
