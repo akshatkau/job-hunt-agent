@@ -1,4 +1,3 @@
-"""Async MongoDB client (motor) with connection pooling."""
 import os
 from typing import Optional
 

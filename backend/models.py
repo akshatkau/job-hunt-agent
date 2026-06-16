@@ -1,4 +1,3 @@
-"""Pydantic models for request/response validation."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, EmailStr
 
 
-# ── User ───────────────────────────────────────────────────────────────────────
+# User 
 
 class UserPreferences(BaseModel):
     roles: list[str] = Field(default_factory=list)
@@ -34,7 +33,7 @@ class UserResponse(BaseModel):
     picture: Optional[str] = None
 
 
-# ── Job ────────────────────────────────────────────────────────────────────────
+# Job 
 
 class JobResponse(BaseModel):
     id: str

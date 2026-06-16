@@ -1,7 +1,3 @@
-"""
-MCP Server: Naukri.com job scraper
-Transport: stdio
-"""
 import asyncio
 import json
 import os

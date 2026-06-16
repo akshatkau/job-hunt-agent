@@ -1,7 +1,3 @@
-"""
-MCP Server: Internshala job scraper
-Transport: stdio
-"""
 import asyncio
 import json
 import re

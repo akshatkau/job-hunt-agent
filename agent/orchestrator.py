@@ -1,13 +1,3 @@
-"""
-Job Hunt Agent — MCP Orchestrator
-
-Flow:
-  1. Spin up all 5 MCP servers as subprocesses (stdio transport).
-  2. Discover each server's tools and build an OpenAI-compatible tool list.
-  3. Run an agentic loop: GPT-4o-mini calls search tools → jobs collected.
-  4. Score every collected job against the user's resume (structured output).
-  5. Persist jobs with fit_score >= MIN_FIT_SCORE via the database MCP server.
-"""
 import asyncio
 import json
 import os
@@ -41,7 +31,7 @@ _SERVER_CONFIGS = {
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
-# ── MCP helpers ────────────────────────────────────────────────────────────────
+# MCP helpers 
 
 def _mcp_tool_to_openai(tool: mcp_types.Tool, server_prefix: str) -> dict:
     """Convert an MCP Tool to an OpenAI function-calling tool definition."""
@@ -66,7 +56,7 @@ async def _call_mcp_tool(session: ClientSession, tool_name: str, arguments: dict
         return combined
 
 
-# ── Scoring ────────────────────────────────────────────────────────────────────
+# Scoring
 
 _SCORE_SYSTEM = (
     "You are an expert technical recruiter. Given a job description and a candidate's resume, "
@@ -103,7 +93,7 @@ async def _score_job(job: dict, resume_text: str) -> tuple[int, str]:
         return 0, ""
 
 
-# ── Collection agent loop ──────────────────────────────────────────────────────
+# Collection agent loop
 
 _SEARCH_SYSTEM = (
     "You are a job search agent. The user will provide their job preferences. "
@@ -203,20 +193,6 @@ async def _collect_jobs(
     return all_jobs
 
 
-# ── Main entry point ───────────────────────────────────────────────────────────
-
-# ── Architecture note ─────────────────────────────────────────────────────────
-# Current behavior: run() calls _open_and_collect() once per platform directly.
-# Each platform session is opened, search_jobs is called with a simple query,
-# and results are returned without any AI-driven tool routing.
-#
-# _collect_jobs() (defined above) contains the intended agentic loop where
-# GPT-4o-mini receives all platform tools and decides how to query each one.
-# It is not wired into run() yet — kept here for the planned upgrade.
-#
-# Planned: replace the _open_and_collect TaskGroup in run() with a single
-# _collect_jobs() call so GPT decides tool routing and query strategy.
-# ──────────────────────────────────────────────────────────────────────────────
 
 def _params(key: str) -> StdioServerParameters:
     return StdioServerParameters(
@@ -240,7 +216,7 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
     """
     print(f"[orchestrator] Starting job hunt for user {user_id}", flush=True)
 
-    # ── Build search args with fallbacks ───────────────────────────────────────
+    # Build search args with fallbacks ──────────────────────────────────────
     roles = preferences.get("roles", [])
     locations = preferences.get("location", [])
 
@@ -261,7 +237,7 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
 
     print(f"[orchestrator] search query: {query} | location: {location}", flush=True)
 
-    # ── Sequential scraping (one Chromium at a time to save memory) ────────────
+    # Sequential scraping (one Chromium at a time to save memory)
     all_raw_jobs: list[dict] = []
     for server_name in ["naukri", "linkedin", "internshala", "indeed"]:
         try:
@@ -273,7 +249,7 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
 
     print(f"[orchestrator] Collected {len(all_raw_jobs)} raw jobs", flush=True)
 
-    # ── Score & filter ─────────────────────────────────────────────────────────
+    # Score & filter
     score_tasks = [_score_job(job, resume_text) for job in all_raw_jobs]
     scores = await asyncio.gather(*score_tasks, return_exceptions=True)
 
@@ -336,7 +312,7 @@ async def _open_and_collect(key: str, search_args: dict) -> list[dict]:
     return jobs
 
 
-# ── CLI entry ──────────────────────────────────────────────────────────────────
+# CLI entry
 
 if __name__ == "__main__":
     import argparse

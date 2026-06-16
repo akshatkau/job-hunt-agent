@@ -1,15 +1,4 @@
-"""
-FastAPI backend — exposes job data and triggers the agent orchestrator.
 
-Routes:
-  GET  /jobs                → list jobs (filters: platform, score, status)
-  POST /jobs/scrape         → trigger agent run
-  PUT  /jobs/{id}/status    → update job status
-  POST /users               → create user profile
-  GET  /users/{id}          → get user profile
-  PUT  /users/{id}          → update user profile
-  POST /users/parse-resume  → AI resume parsing
-"""
 import asyncio
 import base64
 import io
@@ -53,7 +42,7 @@ def _get_openai() -> AsyncOpenAI:
     return _openai_client
 
 
-# ── App lifecycle ──────────────────────────────────────────────────────────────
+# App lifecycle
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,14 +112,14 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 
-# ── Health ─────────────────────────────────────────────────────────────────────
+# Health 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
 
-# ── Users ──────────────────────────────────────────────────────────────────────
+# Users 
 
 @app.post("/users", response_model=UserResponse, status_code=201, dependencies=[Depends(verify_jwt)])
 async def create_user(body: UserCreate):
@@ -148,7 +137,7 @@ async def create_user(body: UserCreate):
 class _ParseResumeRequest(BaseModel):
     user_id: str
     resume_text: Optional[str] = None
-    resume_pdf: Optional[str] = None  # base64-encoded PDF
+    resume_pdf: Optional[str] = None  
     filename: Optional[str] = "resume.pdf"
 
 
@@ -168,7 +157,7 @@ _PARSE_INSTRUCTIONS = (
 
 @app.post("/users/parse-resume", dependencies=[Depends(verify_jwt)])
 async def parse_resume(body: _ParseResumeRequest):
-    # ── Extract plain text from whichever source was provided ─────────────────
+    # Extract plain text from whichever source was provided 
     if body.resume_pdf:
         try:
             from pypdf import PdfReader
@@ -191,7 +180,7 @@ async def parse_resume(body: _ParseResumeRequest):
     else:
         raise HTTPException(status_code=422, detail="Provide resume_pdf or resume_text")
 
-    # ── Validate document is actually a resume ────────────────────────────────
+    # Validate document is actually a resume 
     client = _get_openai()
     validation_prompt = (
         "You are a document classifier.\n"
@@ -218,7 +207,7 @@ async def parse_resume(body: _ParseResumeRequest):
             ),
         )
 
-    # ── Send extracted text to GPT-4o-mini ────────────────────────────────────
+    # Send extracted text to GPT-4o-mini 
     prompt = _PARSE_INSTRUCTIONS + f"\n\nResume:\n{resume_text}"
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
@@ -267,7 +256,7 @@ async def update_user(user_id: str, body: UserUpdate):
     return _user_response(result)
 
 
-# ── Jobs ───────────────────────────────────────────────────────────────────────
+# Jobs 
 
 @app.get("/jobs", response_model=list[JobResponse], dependencies=[Depends(verify_jwt)])
 async def list_jobs(
@@ -320,7 +309,6 @@ async def trigger_scrape(body: ScrapeRequest):
     )
     resume_text = body.resume_text or user_doc.get("resume_text", "")
 
-    # Import here to avoid circular deps at module load
     from agent.orchestrator import run as agent_run
 
     asyncio.create_task(
@@ -351,7 +339,7 @@ async def update_job_status(job_id: str, body: JobStatusUpdate):
     return _job_response(result)
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers
 
 def _object_id(id_str: str) -> ObjectId:
     try:
@@ -396,7 +384,7 @@ def _job_response(doc: dict) -> JobResponse:
     )
 
 
-# ── Dev entry ──────────────────────────────────────────────────────────────────
+# Dev entry
 
 if __name__ == "__main__":
     import uvicorn

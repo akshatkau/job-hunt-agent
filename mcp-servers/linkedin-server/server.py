@@ -1,7 +1,3 @@
-"""
-MCP Server: LinkedIn Jobs scraper
-Transport: stdio
-"""
 import asyncio
 import json
 import re

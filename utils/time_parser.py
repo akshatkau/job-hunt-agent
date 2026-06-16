@@ -1,18 +1,4 @@
-"""
-Shared utility: parse relative time strings scraped from job boards into UTC datetimes.
 
-Handles:
-  "Just now", "Just posted", "Active today", "Today"
-  "30 seconds ago", "5 minutes ago"
-  "1 hour ago",  "3 hours ago",  "an hour ago"
-  "1 day ago",   "2 days ago",   "a day ago"
-  "1 week ago",  "2 weeks ago",  "a week ago"
-  "1 month ago", "2 months ago", "a month ago"
-  "1 year ago",  "2 years ago"
-  "30+ days ago"
-  Naukri-style capitalised:  "3 Days Ago", "2 Hours Ago"
-  Indeed-style prefix:       "Posted 2 days ago", "PostedJust posted"
-"""
 import re
 from datetime import datetime, timedelta, timezone
 

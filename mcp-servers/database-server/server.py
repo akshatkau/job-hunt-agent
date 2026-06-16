@@ -1,7 +1,3 @@
-"""
-MCP Server: MongoDB database operations
-Transport: stdio
-"""
 import asyncio
 import json
 import os
@@ -52,14 +48,13 @@ def _serialize(doc: dict) -> dict:
     return result
 
 
-# ── Tool implementations ──────────────────────────────────────────────────────
+# Tool implementations
 
 async def _save_job(job_data: dict) -> dict:
     db = _get_db()
     now = datetime.now(timezone.utc)
 
-    # Store posted_at as a proper BSON datetime for reliable range queries.
-    # Drop it entirely when null so $gte filters don't match docs without a date.
+    
     if "posted_at" in job_data:
         if job_data["posted_at"] is None:
             del job_data["posted_at"]
@@ -69,9 +64,7 @@ async def _save_job(job_data: dict) -> dict:
             except ValueError:
                 del job_data["posted_at"]
 
-    # Upsert on (user_id + url) to avoid duplicates.
-    # $setOnInsert: scraped_at + status only written on first insert.
-    # $set: all mutable fields + last_seen_at updated every scrape.
+  
     filter_q = {
         "user_id": job_data.get("user_id"),
         "url": job_data.get("url"),
@@ -134,7 +127,7 @@ async def _update_job_status(job_id: str, status: str) -> dict:
     return {"matched_count": result.matched_count, "modified_count": result.modified_count}
 
 
-# ── MCP tool definitions ──────────────────────────────────────────────────────
+# MCP tool definitions
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:

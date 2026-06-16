@@ -1,6 +1,3 @@
-"""
-Auth routes: Google OAuth → issue our own JWT.
-"""
 from datetime import datetime, timezone
 
 from fastapi import APIRouter

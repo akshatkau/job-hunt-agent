@@ -1,6 +1,3 @@
-"""
-Auth helpers: Google ID token verification + JWT creation/verification.
-"""
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -16,7 +13,7 @@ load_dotenv()
 _bearer = HTTPBearer(auto_error=False)
 
 
-# ── Google ─────────────────────────────────────────────────────────────────────
+# Google
 
 def verify_google_token(token: str) -> dict:
     """
@@ -44,7 +41,7 @@ def verify_google_token(token: str) -> dict:
     }
 
 
-# ── JWT ────────────────────────────────────────────────────────────────────────
+# JWT
 
 def _secret() -> str:
     s = os.getenv("JWT_SECRET")
