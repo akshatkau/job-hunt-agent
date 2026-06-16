@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import JobCard from '../components/JobCard'
 import ProfileModal from '../components/ProfileModal'
 import SkeletonCard from '../components/SkeletonCard'
+import { ToastContainer, useToast } from '../components/Toast'
 import { getJobs, getUser, scrapeJobs, updateJobStatus } from '../lib/api'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { toasts, toast } = useToast()
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [user, setUser] = useState(null)
@@ -95,6 +97,7 @@ export default function Dashboard() {
     localStorage.setItem('last_scraped', new Date().toISOString())
     try {
       await scrapeJobs(userId)
+      toast.info('Scraping jobs... this takes ~60 seconds')
       let secs = 60
       setScrapeCountdown(secs)
       if (scrapeTimerRef.current) clearInterval(scrapeTimerRef.current)
@@ -107,13 +110,23 @@ export default function Dashboard() {
           setScraping(false)
           setScrapeCountdown(0)
           setRefreshKey(k => k + 1)
+          toast.success('Scrape complete! Refreshing your jobs...')
         }
       }, 1000)
     } catch (err) {
       setScraping(false)
       setScrapeCountdown(0)
+      toast.error('Failed to start scrape. Please try again.')
       console.error('Scrape failed:', err)
     }
+  }
+
+  const STATUS_LABELS = {
+    saved:     'Job saved ✓',
+    applied:   'Marked as applied ✓',
+    rejected:  'Marked as rejected',
+    interview: 'Interview scheduled! 🎉',
+    new:       'Status reset to new',
   }
 
   async function handleStatusChange(jobId, newStatus) {
@@ -121,10 +134,13 @@ export default function Dashboard() {
       await updateJobStatus(jobId, newStatus)
       if (newStatus === 'hidden') {
         setJobs(prev => prev.filter(j => j.id !== jobId))
+        toast.success('Job removed from your list')
       } else {
         setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j))
+        toast.success(STATUS_LABELS[newStatus] || 'Status updated')
       }
     } catch (err) {
+      toast.error('Failed to update status. Please try again.')
       console.error('Failed to update status:', err)
     }
   }
@@ -482,8 +498,11 @@ export default function Dashboard() {
           user={user}
           onSave={updated => { setUser(updated); setShowProfileModal(false) }}
           onClose={() => setShowProfileModal(false)}
+          toast={toast}
         />
       )}
+
+      <ToastContainer toasts={toasts} />
     </div>
   )
 }

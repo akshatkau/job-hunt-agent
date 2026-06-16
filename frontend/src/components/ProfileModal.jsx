@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { parseResume, updateUser } from '../lib/api'
 import TagInput from './TagInput'
 
-export default function ProfileModal({ user, onSave, onClose }) {
+export default function ProfileModal({ user, onSave, onClose, toast }) {
   const [form, setForm] = useState({
     resume_text: user.resume_text || '',
     roles: user.preferences?.roles || [],
@@ -32,7 +32,9 @@ export default function ProfileModal({ user, onSave, onClose }) {
         skills: parsed.skills?.length ? parsed.skills : f.skills,
         location: parsed.locations?.length ? parsed.locations : f.location,
       }))
+      toast?.success('Resume re-analysed! Preferences updated.')
     } catch (err) {
+      toast?.error('Failed to re-parse resume. Please try again.')
       setError('Parse failed: ' + err.message)
     } finally {
       setParsing(false)
@@ -55,8 +57,10 @@ export default function ProfileModal({ user, onSave, onClose }) {
         },
       })
       localStorage.setItem('has_resume', '1')
+      toast?.success('Profile updated successfully')
       onSave(updated)
     } catch (err) {
+      toast?.error('Failed to save profile. Please try again.')
       setError('Save failed: ' + err.message)
       setSaving(false)
     }

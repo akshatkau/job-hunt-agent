@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TagInput from '../components/TagInput'
+import { ToastContainer, useToast } from '../components/Toast'
 import { parseResume, scrapeJobs, updateUser } from '../lib/api'
 
 function StepIndicator({ step }) {
@@ -39,6 +40,7 @@ function formatBytes(bytes) {
 
 export default function Onboarding() {
   const navigate = useNavigate()
+  const { toasts, toast } = useToast()
   const userId = localStorage.getItem('user_id')
   const fileInputRef = useRef(null)
 
@@ -124,14 +126,18 @@ export default function Onboarding() {
         skills: parsed.skills?.length ? parsed.skills : p.skills,
         location: parsed.locations?.length ? parsed.locations : p.location,
       }))
+      toast.success('Resume analysed! Review your preferences below.')
       setStep(2)
     } catch (err) {
       const msg = err.message || ''
+      let displayMsg
       if (msg.toLowerCase().includes('does not appear to be a resume')) {
-        setParseError("This doesn't look like a resume. Please upload your CV or resume PDF.")
+        displayMsg = "This doesn't look like a resume. Please upload your CV or resume PDF."
       } else {
-        setParseError(msg || 'Failed to parse resume. Please try again.')
+        displayMsg = msg || 'Failed to analyse resume. Please try again.'
       }
+      setParseError(displayMsg)
+      toast.error(displayMsg)
     } finally {
       setParsing(false)
     }
@@ -155,6 +161,7 @@ export default function Onboarding() {
       })
       await scrapeJobs(userId)
       localStorage.setItem('has_resume', '1')
+      toast.success('Profile saved! Starting your first job hunt...')
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setLaunchError(err.message || 'Something went wrong. Please try again.')
@@ -166,6 +173,7 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center py-12 px-4">
+      <ToastContainer toasts={toasts} />
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
