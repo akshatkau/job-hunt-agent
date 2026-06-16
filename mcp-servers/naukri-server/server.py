@@ -60,11 +60,17 @@ async def _scrape_naukri(query: str, location: str, experience: int, limit: int)
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            q_slug = re.sub(r"\s+", "-", query.strip().lower())
-            l_slug = re.sub(r"\s+", "-", location.strip().lower())
-            url = f"https://www.naukri.com/{q_slug}-jobs-in-{l_slug}"
-            if experience:
-                url += f"?experience={experience}"
+            query_slug = query.strip().lower().replace(" ", "-").replace(",", "")
+            location_slug = location.strip().lower().replace(" ", "-").replace(",", "")
+            if location.strip().lower() == "remote":
+                url = f"https://www.naukri.com/{query_slug}-jobs?wfhType=1"
+                if experience:
+                    url += f"&experience={experience}"
+            else:
+                url = f"https://www.naukri.com/{query_slug}-jobs-in-{location_slug}"
+                if experience:
+                    url += f"?experience={experience}"
+            print(f"[naukri] url: {url}", flush=True, file=sys.stderr)
 
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=15_000)

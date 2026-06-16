@@ -63,13 +63,13 @@ async def _scrape_internshala(query: str, location: str, experience: int, limit:
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            q_slug = _slugify(query)
-            l_slug = _slugify(location)
-
-            if experience == 0:
-                url = f"https://internshala.com/internships/{q_slug}-internship-in-{l_slug}/"
+            query_slug = query.strip().lower().replace(" ", "-").replace(",", "")
+            location_slug = location.strip().lower().replace(" ", "-").replace(",", "")
+            if location.strip().lower() == "remote":
+                url = f"https://internshala.com/jobs/work-from-home-{query_slug}-jobs"
             else:
-                url = f"https://internshala.com/jobs/{q_slug}-jobs-in-{l_slug}/"
+                url = f"https://internshala.com/jobs/{query_slug}-jobs-in-{location_slug}"
+            print(f"[internshala] url: {url}", flush=True, file=sys.stderr)
 
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=15_000)

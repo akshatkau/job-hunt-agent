@@ -226,26 +226,27 @@ async def run(user_id: str, preferences: dict, resume_text: str) -> list[dict]:
         locations = ["India", "Remote"]
 
     query = " OR ".join(roles[:3])
-    location = locations[0] if locations else "India"
+    experience = preferences.get("experience", 0)
 
-    search_args = {
-        "query": query,
-        "location": location,
-        "experience": preferences.get("experience", 0),
-        "limit": 20,
-    }
+    print(f"[orchestrator] search query: {query} | locations: {locations[:2]}", flush=True)
 
-    print(f"[orchestrator] search query: {query} | location: {location}", flush=True)
-
-    # Sequential scraping (one Chromium at a time to save memory)
+    # ── Sequential scraping per location (one Chromium at a time) ─────────────
     all_raw_jobs: list[dict] = []
-    for server_name in ["naukri", "linkedin", "internshala", "indeed"]:
-        try:
-            jobs = await _open_and_collect(server_name, search_args)
-            all_raw_jobs.extend(jobs)
-            print(f"[orchestrator] {server_name}: {len(jobs)} jobs", flush=True)
-        except Exception as e:
-            print(f"[orchestrator] {server_name} failed: {e}", flush=True)
+    for location in locations[:2]:  # max 2 locations to save memory
+        search_args = {
+            "query": query,
+            "location": location,
+            "experience": experience,
+            "limit": 15,
+        }
+        print(f"[orchestrator] searching: {query} in {location}", flush=True)
+        for server_name in ["naukri", "linkedin", "internshala", "indeed"]:
+            try:
+                jobs = await _open_and_collect(server_name, search_args)
+                all_raw_jobs.extend(jobs)
+                print(f"[orchestrator] {server_name}@{location}: {len(jobs)} jobs", flush=True)
+            except Exception as e:
+                print(f"[orchestrator] {server_name} failed: {e}", flush=True)
 
     print(f"[orchestrator] Collected {len(all_raw_jobs)} raw jobs", flush=True)
 

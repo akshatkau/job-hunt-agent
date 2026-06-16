@@ -78,11 +78,10 @@ async def _scrape_linkedin(query: str, location: str, experience: int, limit: in
             params = {
                 "keywords": query,
                 "location": location,
-                "f_E": _experience_filter(experience),
-                "position": 1,
-                "pageNum": 0,
+                "f_TPR": "r604800",  # last 7 days
             }
             url = "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode(params)
+            print(f"[linkedin] url: {url}", flush=True, file=sys.stderr)
 
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=15_000)

@@ -74,12 +74,19 @@ async def _scrape_indeed(query: str, location: str, experience: int, limit: int)
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            params = {
-                "q": query,
-                "l": location,
-                "explvl": _exp_level(experience),
+            _INDIA_TERMS = {
+                "india", "remote", "bangalore", "bengaluru", "mumbai", "delhi",
+                "hyderabad", "chennai", "pune", "kolkata", "noida", "gurgaon",
+                "gurugram", "ahmedabad", "jaipur",
             }
-            url = "https://in.indeed.com/jobs?" + urllib.parse.urlencode(params)
+            loc_lower = location.strip().lower()
+            domain = "in.indeed.com" if any(t in loc_lower for t in _INDIA_TERMS) else "www.indeed.com"
+            url = (
+                f"https://{domain}/jobs"
+                f"?q={urllib.parse.quote(query)}"
+                f"&l={urllib.parse.quote(location)}"
+            )
+            print(f"[indeed] url: {url}", flush=True, file=sys.stderr)
 
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
