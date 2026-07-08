@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [scraping, setScraping] = useState(false)
   const [scrapeCountdown, setScrapeCountdown] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [sessionExpiring, setSessionExpiring] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -39,7 +40,27 @@ export default function Dashboard() {
   useEffect(() => {
     const userId = localStorage.getItem('user_id')
     if (!userId) { navigate('/login', { replace: true }); return }
-    getUser(userId).then(setUser).catch(console.error)
+
+    const loginAt = parseInt(localStorage.getItem('login_at') || '0', 10)
+    if (loginAt && Date.now() - loginAt > 20 * 60 * 60 * 1000) {
+      setSessionExpiring(true)
+    }
+
+    const load = async () => {
+      try {
+        const u = await getUser(userId)
+        if (u) setUser(u)
+      } catch (err) {
+        const msg = err.message?.toLowerCase() || ''
+        if (msg.includes('401') || msg.includes('unauthorized')) {
+          localStorage.clear()
+          navigate('/login', { replace: true })
+        } else {
+          console.error('Failed to load user:', err)
+        }
+      }
+    }
+    load()
   }, [])
 
   // ── Fetch jobs whenever filters or refreshKey change ───────────────────────
@@ -60,8 +81,17 @@ export default function Dashboard() {
     }
 
     getJobs(params)
-      .then(data => { if (!cancelled) setJobs(data) })
-      .catch(err => { if (!cancelled) console.error('fetch jobs:', err) })
+      .then(data => { if (!cancelled) setJobs(data ?? []) })
+      .catch(err => {
+        if (cancelled) return
+        const msg = err.message?.toLowerCase() || ''
+        if (msg.includes('401') || msg.includes('unauthorized')) {
+          localStorage.clear()
+          navigate('/login', { replace: true })
+        } else {
+          console.error('fetch jobs:', err)
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
@@ -445,6 +475,22 @@ export default function Dashboard() {
             </button>
           </div>
         </nav>
+
+        {/* Session expiry banner */}
+        {sessionExpiring && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3 flex-shrink-0">
+            <p className="text-sm text-amber-800">
+              Your session expires soon.
+            </p>
+            <button
+              onClick={() => { localStorage.clear(); navigate('/login', { replace: true }) }}
+              className="text-sm font-semibold text-amber-900 underline underline-offset-2
+                         hover:text-amber-700 whitespace-nowrap"
+            >
+              Re-login to stay connected
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">

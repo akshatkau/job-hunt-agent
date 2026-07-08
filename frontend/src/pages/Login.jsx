@@ -46,6 +46,7 @@ export default function Login() {
       localStorage.setItem('user_name', data.name)
       localStorage.setItem('user_email', data.email)
       localStorage.setItem('user_picture', data.picture)
+      localStorage.setItem('login_at', Date.now().toString())
       window.google.accounts.id.disableAutoSelect()
       if (data.resume_text) {
         localStorage.setItem('has_resume', '1')
